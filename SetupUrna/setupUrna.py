@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gtk
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk, Gdk
 import os
 import subprocess
 import sys
 from time import sleep
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+
 
 import generateKey
 
@@ -34,9 +38,10 @@ class Ui_MainWindow(object):
         MainWindow.showMaximized()
 
         self.MainWindow = MainWindow
-
-        self.screenWidth = gtk.gdk.screen_width()
-        self.screenHeight = gtk.gdk.screen_height()
+	
+        screen = Gdk.Screen.get_default()
+        self.screenWidth = screen.get_width()   #1024
+        self.screenHeight = screen.get_height() #600
 
         self.centralwidget = mainWidget(self, MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -99,10 +104,10 @@ class Ui_MainWindow(object):
         QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "MainWindow", None, QApplication.UnicodeUTF8))
+        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "MainWindow", None))
         self.btnGerarChaves.setText(
-            QApplication.translate("MainWindow", "GERAR CHAVES", None, QApplication.UnicodeUTF8))
-        self.btnSair.setText(QApplication.translate("MainWindow", "SAIR", None, QApplication.UnicodeUTF8))
+            QApplication.translate("MainWindow", "GERAR CHAVES", None))
+        self.btnSair.setText(QApplication.translate("MainWindow", "SAIR", None))
 
     def btnSairClicked(self):
         self.MainWindow.close()
@@ -146,7 +151,7 @@ def main():
     mySW = ControlMainWindow()
     mySW.show()
     mySW.raise_()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
