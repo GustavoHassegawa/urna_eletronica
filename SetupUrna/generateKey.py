@@ -24,15 +24,15 @@ def generate_RSA(bits=1024):
 
 def encrypt(message, f):
     publicKeyFile = f.read()
-    rsakey = RSA.importKey(publicKeyFile)
+    rsakey = RSA.import_key(publicKeyFile)
     rsakey = PKCS1_OAEP.new(rsakey)
     encrypted = rsakey.encrypt(message)
-    return encrypted.encode('base64')
+    return b64encode(encrypted).decode('utf-8')
 
 
 def decrypt(message, f):
     privateKeyFile = f.read()
-    rsakey = RSA.importKey(privateKeyFile)
+    rsakey = RSA.import_key(privateKeyFile)
     rsakey = PKCS1_OAEP.new(rsakey)
     decrypted = rsakey.decrypt(b64decode(message))
     return decrypted
