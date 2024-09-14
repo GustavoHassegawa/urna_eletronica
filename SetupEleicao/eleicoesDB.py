@@ -34,7 +34,7 @@ class DAO(Singleton):
         # revert all of them back to the last commit by calling
         # session.rollback()
         self.session = self.DBSession()
-
+        
     def apagarDados(self):
         self.session.query(Candidatos).delete()
         self.session.query(Cargos).delete()
@@ -80,3 +80,4 @@ class DAO(Singleton):
         row = self.session.query(Partidos.foto_partido).filter(Partidos.sigla_partido == sigla)
         row = [i for i, in row]
         return row[0]
+    

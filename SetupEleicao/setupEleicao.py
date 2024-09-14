@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gtk
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
 import os
 import subprocess
 import sys
 from time import sleep
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+
 
 import cadastroCandidato
 import cadastroCargo
@@ -36,8 +40,8 @@ class Ui_MainWindow(object):
 
         self.MainWindow = MainWindow
 
-        self.screenWidth = gtk.gdk.screen_width()
-        self.screenHeight = gtk.gdk.screen_height()
+        self.screenWidth = 1024
+        self.screenHeight = 600
 
         self.centralwidget = mainWidget(self, MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -126,12 +130,12 @@ class Ui_MainWindow(object):
 
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "MainWindow", None, QApplication.UnicodeUTF8))
-        self.btnCriarTabelas.setText(QApplication.translate("MainWindow", "APAGAR ELEIÇÃO", None, QApplication.UnicodeUTF8))
-        self.btnCadastrarPartido.setText(QApplication.translate("MainWindow", "CADASTRAR PARTIDO", None, QApplication.UnicodeUTF8))
-        self.btnCadastrarCargo.setText(QApplication.translate("MainWindow", "CADASTRAR CARGO", None, QApplication.UnicodeUTF8))
-        self.btnCadastrarCandidato.setText(QApplication.translate("MainWindow", "CADASTRAR CANDIDATO", None, QApplication.UnicodeUTF8))
-        self.btnSair.setText(QApplication.translate("MainWindow", "SAIR", None, QApplication.UnicodeUTF8))
+        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "MainWindow", None))
+        self.btnCriarTabelas.setText(QApplication.translate("MainWindow", "APAGAR ELEIÇÃO", None))
+        self.btnCadastrarPartido.setText(QApplication.translate("MainWindow", "CADASTRAR PARTIDO", None))
+        self.btnCadastrarCargo.setText(QApplication.translate("MainWindow", "CADASTRAR CARGO", None))
+        self.btnCadastrarCandidato.setText(QApplication.translate("MainWindow", "CADASTRAR CANDIDATO", None))
+        self.btnSair.setText(QApplication.translate("MainWindow", "SAIR", None))
 
     def btnSairClicked(self):
         self.MainWindow.close()
@@ -185,7 +189,7 @@ def main():
     mySW = ControlMainWindow()
     mySW.show()
     mySW.raise_()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

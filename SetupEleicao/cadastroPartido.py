@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gtk
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
 import os
 import sys
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 import eleicoesDB
-import pynotify
+import notify2
 
 script_dir = os.path.dirname(__file__)
 ICON = os.path.join(script_dir, "../files/icon.png")
@@ -34,8 +37,8 @@ class Ui_MainWindow(object):
 
         self.MainWindow = MainWindow
 
-        self.screenWidth = gtk.gdk.screen_width()
-        self.screenHeight = gtk.gdk.screen_height()
+        self.screenWidth = 1024
+        self.screenHeight = 600
 
         self.centralwidget = QWidget()
         self.centralwidget.setObjectName("centralwidget")
@@ -158,10 +161,10 @@ class Ui_MainWindow(object):
 
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "Urna Eletronica", None, QApplication.UnicodeUTF8))
-        self.btnCadastrar.setText(QApplication.translate("MainWindow", "CADASTRAR", None, QApplication.UnicodeUTF8))
-        self.btnFoto.setText(QApplication.translate("MainWindow", "INSERIR FOTO", None, QApplication.UnicodeUTF8))
-        self.btnSair.setText(QApplication.translate("MainWindow", "SAIR", None, QApplication.UnicodeUTF8))
+        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "Urna Eletronica", None))
+        self.btnCadastrar.setText(QApplication.translate("MainWindow", "CADASTRAR", None))
+        self.btnFoto.setText(QApplication.translate("MainWindow", "INSERIR FOTO", None))
+        self.btnSair.setText(QApplication.translate("MainWindow", "SAIR", None))
         self.txtNomePartido.setFocus()
 
     def btnFotoClicked(self):
@@ -176,31 +179,33 @@ class Ui_MainWindow(object):
     # funcao que chama a tela para digitar os numeros ao selecionar um cargo para votar
     def btnCadastrarClicked(self):
         if self.txtNomePartido.text() == "":
-            pynotify.init(u"Urna Eletrônica")
-            notificacao = pynotify.Notification(u'Oops', u'Você esqueceu de inserir o nome')
+            notify2.init(u"Urna Eletrônica")
+            notificacao = notify2.Notification(u'Oops', u'Você esqueceu de inserir o nome')
             notificacao.show()
         elif self.txtSiglaPartido.text() == "":
-            pynotify.init(u"Urna Eletrônica")
-            notificacao = pynotify.Notification(u'Oops', u'Você esqueceu de inserir a sigla')
+            notify2.init(u"Urna Eletrônica")
+            notificacao = notify2.Notification(u'Oops', u'Você esqueceu de inserir a sigla')
             notificacao.show()
         elif self.txtNumeroPartido.text() == "":
-            pynotify.init(u"Urna Eletrônica")
-            notificacao = pynotify.Notification(u'Oops', u'Você esqueceu de inserir o número')
+            notify2.init(u"Urna Eletrônica")
+            notificacao = notify2.Notification(u'Oops', u'Você esqueceu de inserir o número')
             notificacao.show()
         elif self.txtPresidentePartido.text() == "":
-            pynotify.init(u"Urna Eletrônica")
-            notificacao = pynotify.Notification(u'Oops', u'Você esqueceu de inserir o presidente')
+            notify2.init(u"Urna Eletrônica")
+            notificacao = notify2.Notification(u'Oops', u'Você esqueceu de inserir o presidente')
             notificacao.show()
         elif self.lblFotoName.text() == "":
-            pynotify.init(u"Urna Eletrônica")
-            notificacao = pynotify.Notification(u'Oops', u'Você esqueceu de selecionar uma foto')
+            notify2.init(u"Urna Eletrônica")
+            notificacao = notify2.Notification(u'Oops', u'Você esqueceu de selecionar uma foto')
             notificacao.show()
         else:
-            fin = open(self.lblFotoName.text())
-            img = fin.read()
+            with open(self.lblFotoName.text(), 'rb') as fin:
+                img = fin.read()
+            #fin = open(self.lblFotoName.text())
+            #img = fin.read()
             database.inserirPartido(self.txtNumeroPartido.text(), self.txtNomePartido.text(), self.txtSiglaPartido.text(), self.txtPresidentePartido.text(), img)
-            pynotify.init(u"Urna Eletrônica")
-            notificacao = pynotify.Notification(u"OK", u"Partido cadastrado com sucesso.")
+            notify2.init(u"Urna Eletrônica")
+            notificacao = notify2.Notification(u"OK", u"Partido cadastrado com sucesso.")
             notificacao.show()
             pixmap = QPixmap(ICON)
             self.lblFoto.setPixmap(pixmap)

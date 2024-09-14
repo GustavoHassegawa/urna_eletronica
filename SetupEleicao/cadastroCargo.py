@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gtk
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
 import os
 import sys
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+
 
 import eleicoesDB
-import pynotify
+import notify2
 
 script_dir = os.path.dirname(__file__)
 ICON = os.path.join(script_dir, "../files/icon.png")
@@ -35,8 +39,8 @@ class Ui_MainWindow(object):
 
         self.MainWindow = MainWindow
 
-        self.screenWidth = gtk.gdk.screen_width()
-        self.screenHeight = gtk.gdk.screen_height()
+        self.screenWidth = 1024
+        self.screenHeight = 600
 
         self.centralwidget = QWidget()
         self.centralwidget.setObjectName("centralwidget")
@@ -100,25 +104,25 @@ class Ui_MainWindow(object):
 
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "Urna Eletronica", None, QApplication.UnicodeUTF8))
-        self.btnCadastrar.setText(QApplication.translate("MainWindow", "CADASTRAR", None, QApplication.UnicodeUTF8))
-        self.btnSair.setText(QApplication.translate("MainWindow", "SAIR", None, QApplication.UnicodeUTF8))
+        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "Urna Eletronica", None))
+        self.btnCadastrar.setText(QApplication.translate("MainWindow", "CADASTRAR", None))
+        self.btnSair.setText(QApplication.translate("MainWindow", "SAIR", None))
         self.txtNomeCargo.setFocus()
 
     # funcao que chama a tela para digitar os numeros ao selecionar um cargo para votar
     def btnCadastrarClicked(self):
         if self.txtNomeCargo.text() == "":
-            pynotify.init(u"Urna Eletrônica")
-            notificacao = pynotify.Notification(u'Oops', u'Você esqueceu de inserir o nome')
+            notify2.init(u"Urna Eletrônica")
+            notificacao = notify2.Notification(u'Oops', u'Você esqueceu de inserir o nome')
             notificacao.show()
         elif self.txtQtdeVotos.text() == "":
-            pynotify.init(u"Urna Eletrônica")
-            notificacao = pynotify.Notification(u'Oops', u'Você esqueceu de inserir a quantidade de votos')
+            notify2.init(u"Urna Eletrônica")
+            notificacao = notify2.Notification(u'Oops', u'Você esqueceu de inserir a quantidade de votos')
             notificacao.show()
         else:
             database.inserirCargo(self.txtNomeCargo.text(), self.txtQtdeVotos.text())
-            pynotify.init(u"Urna Eletrônica")
-            notificacao = pynotify.Notification(u"OK", u"Cargo cadastrado com sucesso.")
+            notify2.init(u"Urna Eletrônica")
+            notificacao = notify2.Notification(u"OK", u"Cargo cadastrado com sucesso.")
             notificacao.show()
             self.txtNomeCargo.setText("")
             self.txtQtdeVotos.setText("1")

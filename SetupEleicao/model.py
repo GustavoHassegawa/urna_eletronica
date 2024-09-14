@@ -1,12 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from sqlalchemy.dialects.sqlite import BLOB
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 
 Base = declarative_base()
-
 
 class Cargos(Base):
     __tablename__ = 'cargos'
@@ -20,7 +19,7 @@ class Partidos(Base):
     nome_partido = Column(String(250), nullable=False)
     sigla_partido = Column(String(250), nullable=False)
     presidente_partido = Column(String(250), nullable=False)
-    foto_partido = Column(BLOB, nullable=True)
+    foto_partido = Column(LargeBinary, nullable=True)
 
 class Candidatos(Base):
     __tablename__ = 'candidatos'
@@ -35,8 +34,8 @@ class Candidatos(Base):
 
 # Create an engine that stores data in the local directory's
 # sqlalchemy_example.db file.
-# engine = create_engine('sqlite:///../files/eleicoesdb.db')
+#engine = create_engine('sqlite:///../files/eleicoesdb.db')
 
 # Create all tables in the engine. This is equivalent to "Create Table"
 # statements in raw SQL.
-# Base.metadata.create_all(engine)
+#Base.metadata.create_all(engine)
