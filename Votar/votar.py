@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gtk
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk, Gdk
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+
 
 import pyaudio
 import wave
-import pynotify
+import notify2
 import os
 import eleicoesDB
 
@@ -41,8 +45,8 @@ class Ui_MainWindow(object):
     leg = False
 
     def setupUi(self, MainWindow, cargo):
-        self.screenWidth = gtk.gdk.screen_width()
-        self.screenHeight = gtk.gdk.screen_height()
+        self.screenWidth = 1024
+        self.screenHeight = 600
 
         font = QFont()
         font.setFamily("Helvetica")
@@ -195,10 +199,10 @@ class Ui_MainWindow(object):
         self.btnCorrigeClicked()
 
     def retranslateUi(self):
-        self.MainWindow.setWindowTitle(QApplication.translate("MainWindow", "Votar", None, QApplication.UnicodeUTF8))
-        self.btnBranco.setText(QApplication.translate("MainWindow", "BRANCO", None, QApplication.UnicodeUTF8))
-        self.btnCorrige.setText(QApplication.translate("MainWindow", "CORRIGE", None, QApplication.UnicodeUTF8))
-        self.btnConfirma.setText(QApplication.translate("MainWindow", "CONFIRMA", None, QApplication.UnicodeUTF8))
+        self.MainWindow.setWindowTitle(QApplication.translate("MainWindow", "Votar", None))
+        self.btnBranco.setText(QApplication.translate("MainWindow", "BRANCO", None))
+        self.btnCorrige.setText(QApplication.translate("MainWindow", "CORRIGE", None))
+        self.btnConfirma.setText(QApplication.translate("MainWindow", "CONFIRMA", None))
 
     def acoesTecladoNumerico(self, text):
         if text == "n":  # nulo
@@ -295,7 +299,7 @@ class Ui_MainWindow(object):
         self.lblNomeCandidato.setText("")
         self.lblNomePartido.setText("")
         self.lblNumeroLegenda.setText("")
-        self.lblFoto.setPixmap("")
+        self.lblFoto.setPixmap(QPixmap())
 
 
     # zerar todos os textEdit quando botao corrige é clicado
@@ -308,7 +312,7 @@ class Ui_MainWindow(object):
         self.txtQuadrado3.setReadOnly(False)
         self.txtQuadrado4.setReadOnly(False)
         self.txtQuadrado5.setReadOnly(False)
-        self.lblFoto.setPixmap("")
+        self.lblFoto.setPixmap(QPixmap())
         self.txtQuadrado1.setText("")
         self.txtQuadrado2.setText("")
         self.txtQuadrado3.setText("")
