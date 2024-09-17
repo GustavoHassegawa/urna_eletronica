@@ -1,222 +1,400 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gtk
-import os
-import pyaudio
-import random
-import sys
-import wave
-from reportlab.lib.units import cm
-from reportlab.pdfgen import canvas
-from time import sleep
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP
-import pyqrcode
-from PySide.QtCore import *
-from PySide.QtGui import *
-import subprocess
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk, Gdk
 
-import votar
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+
+
+import pyaudio
+import wave
+import notify2
+import os
 import eleicoesDB
 
 script_dir = os.path.dirname(__file__)
-PUBLIC_KEY = os.path.join(script_dir, "../files/publickey.pem")
-ICON = os.path.join(script_dir, "../files/icon.png")
 BEEP = os.path.join(script_dir, "../files/beep_urna.wav")
 FIM = os.path.join(script_dir, "../files/fim_urna.wav")
-VOTO_PDF = os.path.join(script_dir, "../files/voto.pdf")
-VOTO_PNG = os.path.join(script_dir, "../files/voto.png")
 
-
-class ControlMainWindow(QMainWindow):
-    def __init__(self, parent=None):
-        super(ControlMainWindow, self).__init__(parent)
-
-        # thread criada para aguardar 5 segundos antes de reiniciar o programa apos um eleitor votar
-        self.thread = MyThread()
-        self.thread.finished.connect(self.fechar)
-
-        self.ui = Ui_MainWindow(self.thread)
-        self.ui.setupUi(self)
-
-    def fechar(self):
-        sys.exit()
-
-        # Reexecutar o programa ao sair?
-        python = sys.executable
-        os.execl(python, python, *sys.argv)
-
-
-class Ui_MainWindow(object):
-    def __init__(self, thread):
-        self.thread = thread
-
-    def eventFilter(self, object, event):
-        if event.type() == QEvent.WindowActivate:
-            if self.ui.votarWindow is not None:
-                if database.getQtdeCargos() == self.ui.votarWindow.getQtdeCargosVotados():
-                    if self.ui.thread.isRunning():
-                        self.ui.thread.exiting = True
-                    else:
-                        self.ui.lblImprimir.setText("Imprimindo voto")
-                        self.ui.thread.start()
-                        gerarString(self, self.ui.votarWindow.getCargosVotados())
-
-    def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
-        MainWindow.show()
-        MainWindow.showMaximized()
-        MainWindow.setWindowIcon(QIcon(ICON))
-
-        self.screenWidth = gtk.gdk.screen_width()
-        self.screenHeight = gtk.gdk.screen_height()
-
-        self.centralwidget = mainWidget(self, MainWindow)
-        self.centralwidget.setObjectName("centralwidget")
-        self.centralwidget.installEventFilter(self.centralwidget)
-
-        font = QFont()
-        font.setFamily("Helvetica")
-        font.setPointSize(32)
-        font.setItalic(False)
-
-        self.lblTitulo = QLabel(self.centralwidget)
-        self.lblTitulo.setGeometry(QRect(50, 50, self.screenWidth - 100, 50))
-        self.lblTitulo.setObjectName("lblTitulo")
-        self.lblTitulo.setText("Selecione um cargo para votar")
-        self.lblTitulo.setFont(font)
-        self.lblTitulo.setAlignment(Qt.AlignCenter)
-
-        self.btnVotar = QPushButton(self.centralwidget)
-        self.btnVotar.setGeometry(QRect(self.screenWidth / 2 - 100, self.screenHeight - 100, 200, 50))
-        self.btnVotar.setObjectName("btnVotar")
-        self.btnVotar.clicked.connect(self.btnVotarClicked)
-        self.btnVotar.setStyleSheet("QPushButton{\
-					border: 2px solid #2d2dff;\
-					border-radius: 6px;\
-					background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #ffffff, stop: 1 #dddddd);\
-					min-width: 80px;}")
-
-        self.lstCargos = QListWidget(self.centralwidget)
-        self.lstCargos.setGeometry(
-            QRect(100, self.lblTitulo.pos().y() + self.lblTitulo.height() + 50, self.screenWidth - 200,
-                  self.screenHeight - self.lblTitulo.height() - self.btnVotar.height() - 200))
-        self.lstCargos.setObjectName("lstCargos")
-        self.lstCargos.setFont(font)
-        self.lstCargos.setWordWrap(True)
-
-        # preencher lstCargos com cargos para eleicao
-        for cargo in database.getCargos():
-            item = QListWidgetItem(cargo)
-            self.lstCargos.addItem(item)
-        self.lstCargos.setCurrentRow(0)
-
-        # label que ira mostrar mensagem "imprimindo voto"
-        # ele fica invisivel no inicio e so aparece quando a listview e esvaziada
-        # ou seja, quando o eleitor ja votou para todos os cargos possiveis
-        self.lblImprimir = QLineEdit(self.centralwidget)
-        self.lblImprimir.setGeometry(QRect(50, 50, self.screenWidth - 100, self.screenHeight - 100))
-        self.lblImprimir.setFont(font)
-        self.lblImprimir.setAlignment(Qt.AlignCenter)
-        self.lblImprimir.setObjectName("lblImprimir")
-        self.lblImprimir.setVisible(False)
-
-        # Variavel onde sera inicializada a classe de votacao
-        self.votarWindow = None
-
-        MainWindow.setCentralWidget(self.centralwidget)
-
-        self.retranslateUi(MainWindow)
-        QMetaObject.connectSlotsByName(MainWindow)
-
-    def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(
-            QApplication.translate("MainWindow", "Urna Eletronica", None, QApplication.UnicodeUTF8))
-        self.btnVotar.setText(QApplication.translate("MainWindow", "VOTAR", None, QApplication.UnicodeUTF8))
-        self.lblImprimir.setText(QApplication.translate("MainWindow", "", None, QApplication.UnicodeUTF8))
-
-    # funcao que chama a tela para digitar os numeros ao selecionar um cargo para votar
-    def btnVotarClicked(self):
-        if self.lstCargos.currentItem() is None:
-            print("Nenhum candidato selecionado")
-        else:
-            votarCargo = self.lstCargos.currentItem()
-            self.votarWindow = votar.ControlMainWindow(votarCargo.text())
-            self.lstCargos.takeItem(self.lstCargos.row(votarCargo))
-            if self.lstCargos.count() == 0:
-                self.lblImprimir.setText("Imprimindo Voto")
-                self.lblImprimir.setEnabled(False)
-                self.lblImprimir.setVisible(True)
-                self.btnVotar.setVisible(False)
-
+database = eleicoesDB.DAO()
 
 class mainWidget(QWidget):
     def __init__(self, ui, parent=None):
         super(mainWidget, self).__init__(parent)
         self.ui = ui
-        self.installEventFilter(self)
 
-    def eventFilter(self, object, event):
-        if event.type() == QEvent.WindowActivate:
-            if self.ui.votarWindow is not None:
-                if database.getQtdeCargos() == self.ui.votarWindow.getQtdeCargosVotados():
-                    if self.ui.thread.isRunning():
-                        self.ui.thread.exiting = True
-                    else:
-                        self.ui.lblImprimir.setText("Imprimindo voto")
-                        self.ui.thread.start()
-                        gerarString(self, self.ui.votarWindow.getCargosVotados())
-        return False
+    def keyPressEvent(self, event):
+        self.ui.acoesTecladoNumerico(event.text())
 
-        def keyPressEvent(self, event):
-            if event.text() == "v":
-                self.ui.btnVotarClicked()
-            elif event.text() == "a":
-                self.ui.btnVotarClicked()
-            elif event.text() == "1":
-                self.ui.lstCargos.setCurrentRow(0)
-                self.ui.btnVotarClicked()
-            elif event.text() == "2":
-                self.ui.lstCargos.setCurrentRow(1)
-                self.ui.btnVotarClicked()
-            elif event.text() == "3":
-                self.ui.lstCargos.setCurrentRow(2)
-                self.ui.btnVotarClicked()
-            elif event.text() == "4":
-                self.ui.lstCargos.setCurrentRow(3)
-                self.ui.btnVotarClicked()
-            elif event.text() == "5":
-                self.ui.lstCargos.setCurrentRow(4)
-                self.ui.btnVotarClicked()
-            elif event.text() == "6":
-                self.ui.lstCargos.setCurrentRow(5)
-                self.ui.btnVotarClicked()
-            elif event.text() == "7":
-                self.ui.lstCargos.setCurrentRow(6)
-                self.ui.btnVotarClicked()
-            elif event.text() == "8":
-                self.ui.lstCargos.setCurrentRow(7)
-                self.ui.btnVotarClicked()
-            elif event.text() == "9":
-                self.ui.lstCargos.setCurrentRow(8)
-                self.ui.btnVotarClicked()
+# n nulo
+# b branco
+# c corrige
+# a confirma
+
+class Ui_MainWindow(object):
+    cargos = []
+    cargoVotado = []
+    numerosDigitados = []
+    cargo = ""
+    MainWindow = None
+    branco = False
+    nulo = False
+    leg = False
+
+    def setupUi(self, MainWindow, cargo):
+        self.screenWidth = 1024
+        self.screenHeight = 600
+
+        font = QFont()
+        font.setFamily("Helvetica")
+        font.setPointSize(32)
+        font.setItalic(False)
+        self.qtdeVotosNecessarios = database.getQtdeVotosCargo(cargo)
+        self.cargo = cargo
+        self.qtdeVotos = 0
+        self.candidatoVotado = []
+        self.MainWindow = MainWindow
+        self.MainWindow.setObjectName("MainWindow")
+        self.MainWindow.showMaximized()
+
+        self.centralwidget = mainWidget(self, MainWindow)
+        self.centralwidget.setObjectName("centralwidget")
+
+        self.lblCargo = QLabel(self.centralwidget)
+        self.lblCargo.setGeometry(QRect(50, 50, self.screenWidth - 100, 100))
+        self.lblCargo.setAlignment(Qt.AlignCenter)
+        self.lblCargo.setText(self.cargo)
+        self.lblCargo.setObjectName("lblCargo")
+        self.lblCargo.setFont(font)
+        self.lblCargo.setWordWrap(True)
+
+        self.txtQuadrado1 = QTextEdit(self.centralwidget)
+        self.txtQuadrado1.setGeometry(QRect(50, self.lblCargo.pos().y() + self.lblCargo.height(), 100, 100))
+        self.txtQuadrado1.setFont(font)
+        self.txtQuadrado1.setObjectName("txtQuadrado1")
+        self.txtQuadrado1.setCursorWidth(0)
+        self.txtQuadrado1.textChanged.connect(self.txtQuadrado1Action)
+
+        self.txtQuadrado2 = QTextEdit(self.centralwidget)
+        self.txtQuadrado2.setGeometry(
+            QRect(self.txtQuadrado1.pos().x() + self.txtQuadrado1.width() + 50, self.txtQuadrado1.pos().y(), 100, 100))
+        self.txtQuadrado2.setFont(font)
+        self.txtQuadrado2.setObjectName("txtQuadrado2")
+        self.txtQuadrado2.setCursorWidth(0)
+        self.txtQuadrado2.textChanged.connect(self.txtQuadrado2Action)
+
+        self.txtQuadrado3 = QTextEdit(self.centralwidget)
+        self.txtQuadrado3.setGeometry(
+            QRect(self.txtQuadrado2.pos().x() + self.txtQuadrado2.width() + 50, self.txtQuadrado1.pos().y(), 100, 100))
+        self.txtQuadrado3.setFont(font)
+        self.txtQuadrado3.setObjectName("txtQuadrado3")
+        self.txtQuadrado3.setCursorWidth(0)
+        self.txtQuadrado3.textChanged.connect(self.txtQuadrado3Action)
+
+        self.txtQuadrado4 = QTextEdit(self.centralwidget)
+        self.txtQuadrado4.setGeometry(
+            QRect(self.txtQuadrado3.pos().x() + self.txtQuadrado3.width() + 50, self.txtQuadrado1.pos().y(), 100, 100))
+        self.txtQuadrado4.setFont(font)
+        self.txtQuadrado4.setObjectName("txtQuadrado4")
+        self.txtQuadrado4.setCursorWidth(0)
+        self.txtQuadrado4.textChanged.connect(self.txtQuadrado4Action)
+
+        self.txtQuadrado5 = QTextEdit(self.centralwidget)
+        self.txtQuadrado5.setGeometry(
+            QRect(self.txtQuadrado4.pos().x() + self.txtQuadrado4.width() + 50, self.txtQuadrado1.pos().y(), 100, 100))
+        self.txtQuadrado5.setFont(font)
+        self.txtQuadrado5.setObjectName("txtQuadrado5")
+        self.txtQuadrado5.setCursorWidth(0)
+        self.txtQuadrado5.textChanged.connect(self.txtQuadrado5Action)
+
+        # nesse elemento será carregada a foto do candidato/simbolo do partido
+        self.lblFoto = QLabel(self.centralwidget)
+        self.lblFoto.setGeometry(QRect(50, self.txtQuadrado1.pos().y() + self.txtQuadrado1.height() + 50, 262.5, 350))
+        self.lblFoto.setObjectName("lblFoto")
+        self.lblFoto.setVisible(True)
+        self.lblFoto.setScaledContents(True)
+        self.lblFoto.setWordWrap(False)
+
+        self.lblNomeCandidato = QLabel(self.centralwidget)
+        self.lblNomeCandidato.setGeometry(QRect(self.lblFoto.pos().x() + self.lblFoto.width() + 50,
+                                                self.txtQuadrado1.pos().y() + self.txtQuadrado1.height() + 50,
+                                                self.screenWidth - (
+                                                self.lblFoto.pos().x() + self.lblFoto.width() + 100), 50))
+        self.lblNomeCandidato.setText("")
+        self.lblNomeCandidato.setObjectName("lblNomeCandidato")
+        self.lblNomeCandidato.setFont(font)
+
+        self.lblNomePartido = QLabel(self.centralwidget)
+        self.lblNomePartido.setGeometry(QRect(self.lblNomeCandidato.pos().x(),
+                                              self.lblNomeCandidato.pos().y() + self.lblNomeCandidato.height() + 50,
+                                              self.lblNomeCandidato.width(), 50))
+        self.lblNomePartido.setText("")
+        self.lblNomePartido.setObjectName("lblNomePartido")
+        self.lblNomePartido.setFont(font)
+
+        self.lblNumeroLegenda = QLabel(self.centralwidget)
+        self.lblNumeroLegenda.setGeometry(
+            QRect(self.lblNomeCandidato.pos().x(), self.lblNomePartido.pos().y() + self.lblNomePartido.height() + 50,
+                  self.lblNomeCandidato.width(), 50))
+        self.lblNumeroLegenda.setText("")
+        self.lblNumeroLegenda.setObjectName("lblNumeroLegenda")
+        self.lblNumeroLegenda.setFont(font)
+
+        self.lblOpcao1 = QLabel(self.centralwidget)
+        self.lblOpcao1.setGeometry(QRect(self.lblFoto.pos().x() + self.lblFoto.width() + 50,
+                                         self.txtQuadrado1.pos().y() + self.txtQuadrado1.height() + 50,
+                                         self.screenWidth - (self.lblFoto.pos().x() + self.lblFoto.width() + 100), 100))
+        self.lblOpcao1.setText("")
+        self.lblOpcao1.setObjectName("lblOpcao1")
+        self.lblOpcao1.setFont(font)
+        self.lblOpcao1.setWordWrap(True)
+
+        self.lblOpcao2 = QLabel(self.centralwidget)
+        self.lblOpcao2.setGeometry(
+            QRect(self.lblNomeCandidato.pos().x(), self.lblNomePartido.pos().y() + self.lblNomePartido.height() + 50,
+                  self.lblNomeCandidato.width(), 100))
+        self.lblOpcao2.setText("")
+        self.lblOpcao2.setObjectName("lblOpcao2")
+        self.lblOpcao2.setFont(font)
+        self.lblOpcao2.setWordWrap(True)
+
+        self.btnBranco = QPushButton(self.centralwidget)
+        self.btnBranco.setGeometry(QRect(50, self.screenHeight - 100, 200, 50))
+        self.btnBranco.setStyleSheet("QPushButton{\
+					border: 2px solid #ffffff;\
+					border-radius: 6px;\
+					background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #ffffff, stop: 1 #dddddd);\
+					min-width: 80px;}")
+        self.btnBranco.setObjectName("btnBranco")
+        self.btnBranco.clicked.connect(self.btnBrancoClicked)
+
+        self.btnCorrige = QPushButton(self.centralwidget)
+        self.btnCorrige.setGeometry(QRect(self.screenWidth / 2 - 100, self.screenHeight - 100, 200, 50))
+        self.btnCorrige.setStyleSheet("QPushButton{\
+					border: 2px solid #ffc800;\
+					border-radius: 6px;\
+					background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #ffffff, stop: 1 #dddddd);\
+					min-width: 80px;}")
+        self.btnCorrige.setObjectName("btnCorrige")
+        self.btnCorrige.clicked.connect(self.btnCorrigeClicked)
+
+        self.btnConfirma = QPushButton(self.centralwidget)
+        self.btnConfirma.setGeometry(QRect(self.screenWidth - 250, self.screenHeight - 100, 200, 50))
+        self.btnConfirma.setStyleSheet("QPushButton{\
+					border: 2px solid #00ff00;\
+					border-radius: 6px;\
+					background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,stop: 0 #ffffff, stop: 1 #dddddd);\
+					min-width: 80px;}")
+        self.btnConfirma.setObjectName("btnConfirma")
+        self.btnConfirma.clicked.connect(self.btnConfirmaClicked)
+
+        self.MainWindow.setCentralWidget(self.centralwidget)
+        self.retranslateUi()
+        QMetaObject.connectSlotsByName(self.MainWindow)
+
+        # Função é chamada para limpar qualquer info que esteja nos quadrados
+        self.btnCorrigeClicked()
+
+    def retranslateUi(self):
+        self.MainWindow.setWindowTitle(QApplication.translate("MainWindow", "Votar", None))
+        self.btnBranco.setText(QApplication.translate("MainWindow", "BRANCO", None))
+        self.btnCorrige.setText(QApplication.translate("MainWindow", "CORRIGE", None))
+        self.btnConfirma.setText(QApplication.translate("MainWindow", "CONFIRMA", None))
+
+    def acoesTecladoNumerico(self, text):
+        if text == "n":  # nulo
+            self.btnNuloClicked()
+        elif text == "b":  # branco
+            self.btnBrancoClicked()
+        elif text == "c":  # corrige
+            self.btnCorrigeClicked()
+        elif text == "a":  # confirma
+            self.btnConfirmaClicked()
+
+    # quando texto é modificado: verifica se entrada é numerica
+    # foca no proximo textedit caso a entrada seja correta
+    # desabilita o textEdit caso a entrada seja correta
+    def txtQuadrado1Action(self):
+        if len(self.txtQuadrado1.toPlainText()) > 0:
+            try:
+                number = int(self.txtQuadrado1.toPlainText())
+                self.txtQuadrado2.setFocus()
+                self.txtQuadrado1.setReadOnly(True)
+                self.numerosDigitados.append(number)
+            except ValueError:
+                self.acoesTecladoNumerico(self.txtQuadrado1.toPlainText())
+                self.txtQuadrado1.setText("")
+        self.onChange()
+
+    def txtQuadrado2Action(self):
+        if len(self.txtQuadrado2.toPlainText()) > 0:
+            try:
+                number = int(self.txtQuadrado2.toPlainText())
+                self.txtQuadrado3.setFocus()
+                self.txtQuadrado2.setReadOnly(True)
+                self.numerosDigitados.append(number)
+            except ValueError:
+                self.acoesTecladoNumerico(self.txtQuadrado2.toPlainText())
+                self.txtQuadrado2.setText("")
+        self.onChange()
+
+    def txtQuadrado3Action(self):
+        if len(self.txtQuadrado3.toPlainText()) > 0:
+            try:
+                number = int(self.txtQuadrado3.toPlainText())
+                self.txtQuadrado4.setFocus()
+                self.txtQuadrado3.setReadOnly(True)
+                self.numerosDigitados.append(number)
+            except ValueError:
+                self.acoesTecladoNumerico(self.txtQuadrado3.toPlainText())
+                self.txtQuadrado3.setText("")
+        self.onChange()
+
+    def txtQuadrado4Action(self):
+        if len(self.txtQuadrado4.toPlainText()) > 0:
+            try:
+                number = int(self.txtQuadrado4.toPlainText())
+                self.txtQuadrado5.setFocus()
+                self.txtQuadrado4.setReadOnly(True)
+                self.numerosDigitados.append(number)
+            except ValueError:
+                self.acoesTecladoNumerico(self.txtQuadrado4.toPlainText())
+                self.txtQuadrado4.setText("")
+        self.onChange()
+
+    def txtQuadrado5Action(self):
+        if len(self.txtQuadrado5.toPlainText()) > 0:
+            try:
+                number = int(self.txtQuadrado5.toPlainText())
+                self.txtQuadrado5.setReadOnly(True)
+                self.numerosDigitados.append(number)
+            except ValueError:
+                self.acoesTecladoNumerico(self.txtQuadrado5.toPlainText())
+                self.txtQuadrado5.setText("")
+        self.onChange()
+
+    def onChange(self):
+        self.limparTela()
+        self.preencherTela()
+
+    def preencherTela(self):
+        if len(self.numerosDigitados) > 0:
+            nome, numero, partido, foto = database.getCandidatoNumeroPartido(self.numerosDigitados, self.cargo)
+            if nome is not None and partido is not None and numero is not None and foto is not None:
+                qimg = QImage.fromData(foto)
+                pixmap = QPixmap.fromImage(qimg)
+                self.lblFoto.setPixmap(pixmap)
+                self.nulo = False
+                self.lblNomeCandidato.setText(nome)
+                self.lblNomePartido.setText(partido)
+                self.lblNumeroLegenda.setText(str(numero))
+
+    # limpar as informacoes da tela toda vez que ela é iniciada e quando botao corrige é clicado
+    def limparTela(self):
+        self.nulo = True
+        self.leg = False
+        self.lblNomeCandidato.setText("")
+        self.lblNomePartido.setText("")
+        self.lblNumeroLegenda.setText("")
+        self.lblFoto.setPixmap(QPixmap())
 
 
-# thread
-class MyThread(QThread):
-    def __init__(self, parent=None):
-        QThread.__init__(self, parent)
-        self.exiting = False
-        self.index = 0
+    # zerar todos os textEdit quando botao corrige é clicado
+    # dar foco ao textEdit1
+    def btnCorrigeClicked(self):
+        while len(self.numerosDigitados) > 0:
+            self.numerosDigitados.pop()
+        self.txtQuadrado1.setReadOnly(False)
+        self.txtQuadrado2.setReadOnly(False)
+        self.txtQuadrado3.setReadOnly(False)
+        self.txtQuadrado4.setReadOnly(False)
+        self.txtQuadrado5.setReadOnly(False)
+        self.lblFoto.setPixmap(QPixmap())
+        self.txtQuadrado1.setText("")
+        self.txtQuadrado2.setText("")
+        self.txtQuadrado3.setText("")
+        self.txtQuadrado4.setText("")
+        self.txtQuadrado5.setText("")
+        self.txtQuadrado1.setFocus()
+        self.limparTela()
 
-    def run(self):
-        som(self, 2)
-        while self.exiting == False:
-            self.index += 1
-            sleep(1)
-            if self.index == 6:
-                self.exiting = True
 
+    # acao quando botao branco é clicado
+    def btnBrancoClicked(self):
+        self.branco = True
+        self.btnCorrigeClicked()
+        self.lblNomeCandidato.setText("Branco")
+
+
+    def btnNuloClicked(self):
+        self.cargoVotado = []
+        self.cargoVotado.append(self.cargo)
+        self.cargoVotado.append(0)  # branco
+        self.cargoVotado.append(1)  # nulo
+        self.cargoVotado.append(0)  # legenda
+        self.cargoVotado.append("00000")  # numero
+        if (self.lblNumeroLegenda.text() not in self.candidatoVotado or self.lblNumeroLegenda.text() == ""):
+            self.cargos.append(self.cargoVotado)
+            self.candidatoVotado.append(self.lblNumeroLegenda.text())
+            self.qtdeVotos += 1
+            if (self.qtdeVotos == int(self.qtdeVotosNecessarios)):
+                self.MainWindow.close()
+            else:
+                self.btnCorrigeClicked()
+
+
+    # acao quando botao confirma é clicado
+    def btnConfirmaClicked(self):
+        if(self.branco):
+            self.branco = False
+            self.cargoVotado = []
+            self.cargoVotado.append(self.cargo)
+            self.cargoVotado.append(1)  # branco
+            self.cargoVotado.append(0)  # nulo
+            self.cargoVotado.append(0)  # legenda
+            self.cargoVotado.append("00000")  # numero
+            if (self.lblNumeroLegenda.text() not in self.candidatoVotado or self.lblNumeroLegenda.text() == ""):
+                som(self,1)
+                self.cargos.append(self.cargoVotado)
+                self.candidatoVotado.append(self.lblNumeroLegenda.text())
+                self.qtdeVotos += 1
+                if (self.qtdeVotos == int(self.qtdeVotosNecessarios)):
+                    self.MainWindow.close()
+                else:
+                    self.btnCorrigeClicked()
+        else:
+            stringDigitos = ""
+            for i in self.numerosDigitados:
+                stringDigitos += str(i)
+            self.cargoVotado = []
+            self.cargoVotado.append(self.cargo)
+            self.cargoVotado.append(0)  # branco
+            self.cargoVotado.append(1) if self.nulo == True else self.cargoVotado.append(0)  # nulo
+            self.cargoVotado.append(1) if self.leg == True  else self.cargoVotado.append(0)  # legenda
+            self.cargoVotado.append(stringDigitos)  # numero
+            if (self.lblNumeroLegenda.text() not in self.candidatoVotado and self.txtQuadrado1.toPlainText() != ""):
+                som(self,1)
+                self.cargos.append(self.cargoVotado)
+                self.candidatoVotado.append(self.lblNumeroLegenda.text())
+                self.qtdeVotos += 1
+                if (self.qtdeVotos == int(self.qtdeVotosNecessarios)):
+                    self.MainWindow.close()
+                else:
+                    self.btnCorrigeClicked()
+            elif (self.lblNumeroLegenda.text() in self.candidatoVotado and self.nulo):
+                som(self,1)
+                self.cargos.append(self.cargoVotado)
+                self.candidatoVotado.append(self.lblNumeroLegenda.text())
+                self.qtdeVotos += 1
+                if (self.qtdeVotos == int(self.qtdeVotosNecessarios)):
+                    self.MainWindow.close()
+                else:
+                    self.btnCorrigeClicked()
+            else:
+                self.btnCorrigeClicked()
 
 def som(self, tipo):
     # define stream chunk
@@ -251,82 +429,14 @@ def som(self, tipo):
     # close PyAudio
     p.terminate()
 
+class ControlMainWindow(QMainWindow):
+    def __init__(self, cargo, parent=None):
+        super(ControlMainWindow, self).__init__(parent)
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self, cargo)
 
-def encrypt(message, f):
-    publicKeyFile = f.read()
-    rsakey = RSA.importKey(publicKeyFile)
-    rsakey = PKCS1_OAEP.new(rsakey)
-    encrypted = rsakey.encrypt(message)
-    # print encrypted.encode('base64')
-    return encrypted.encode('base64')
+    def getCargosVotados(self):
+        return self.ui.cargos
 
-
-# funcao para gerar string para imprimir QRCode
-def gerarString(self, votos):
-    c = canvas.Canvas(VOTO_PDF)
-    c.setPageSize((6.2 * cm, 10 * cm))
-    c.setFont("Helvetica", 10)
-
-    line = 9.5
-    textobject = c.beginText()
-    textobject.setTextOrigin(0.3 * cm, line * cm)
-    textobject.moveCursor(0,15)
-    stringQRCode = "#"
-    for cargo in database.getCargosQtde():
-        for voto in votos:
-            string = ""
-            if cargo == str(voto[0]):
-                string += cargo + ": "
-                textobject.textOut(string)
-                textobject.moveCursor(0, 10)
-                string = ""
-                if str(voto[1]) == "1":
-                    string += "Voto em branco"
-                    stringQRCode += "0"
-                elif str(voto[2]) == "1":
-                    string += "Voto Nulo"
-                    stringQRCode += "-1"
-                else:
-                    string += "Candidato número "+ str(voto[4])
-                    stringQRCode += str(voto[4])
-                textobject.textOut(string)
-                textobject.moveCursor(0,14)
-                votos.remove(voto)
-        stringQRCode += ";"
-
-    textobject.moveCursor(0, 30)
-    string = "_ _ _ _ _ _ Dobre Aqui _ _ _ _ _ _"
-    textobject.textOut(string)
-
-    rng = random.SystemRandom()
-    id_voto = rng.randint(0, 1000000000)
-    stringQRCode += str(id_voto)
-    encryptedMessage = encrypt(stringQRCode, open(PUBLIC_KEY, "rb"))
-    url = pyqrcode.create(encryptedMessage, error="L", encoding="utf-8")
-    url.png(VOTO_PNG, scale=1)
-
-    c.drawText(textobject)
-    c.drawImage(VOTO_PNG, 0.80 * cm, 0.50 * cm, 4.5 * cm, 4.5 * cm)
-    os.remove(VOTO_PNG)
-    c.showPage()
-    c.save()
-
-    subprocess.Popen("lp '{0}'".format(VOTO_PDF), shell=True)
-    #subprocess.Popen("rm '{0}'".format(VOTO_PDF), shell=True)
-
-def main():
-    if not os.path.isfile(PUBLIC_KEY):
-        print("votacao nao pode ser iniciada")
-        print("chave publica faltando")
-        sys.exit()
-
-    app = QApplication(sys.argv)
-    mySW = ControlMainWindow()
-    mySW.show()
-    mySW.raise_()
-    sys.exit(app.exec_())
-
-
-if __name__ == "__main__":
-    database = eleicoesDB.DAO()
-    main()
+    def getQtdeCargosVotados(self):
+        return len(self.ui.cargos)
