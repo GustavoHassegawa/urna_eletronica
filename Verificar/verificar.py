@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gtk
+# -*- coding: utf-8 -*-
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk, Gdk
 import os
 import sys
 import zbar
 from time import sleep
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 from base64 import b64decode
 from Crypto.PublicKey import RSA
@@ -35,8 +39,8 @@ class Ui_MainWindow(object):
 
         MainWindow.setWindowIcon(QIcon(ICON))
 
-        self.screenWidth = gtk.gdk.screen_width()
-        self.screenHeight = gtk.gdk.screen_height()
+        self.screenWidth = 1024
+        self.screenHeight = 600
 
         MainWindow.show()
         MainWindow.showMaximized()
@@ -91,8 +95,8 @@ class Ui_MainWindow(object):
         QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "MainWindow", None, QApplication.UnicodeUTF8))
-        self.btnVerificar.setText(QApplication.translate("MainWindow", "VERIFICAR", None, QApplication.UnicodeUTF8))
+        MainWindow.setWindowTitle(QApplication.translate("MainWindow", "MainWindow", None))
+        self.btnVerificar.setText(QApplication.translate("MainWindow", "VERIFICAR", None))
 
     def btnVerificarClicked(self):
         # create a Processor
@@ -102,7 +106,7 @@ class Ui_MainWindow(object):
         proc.parse_config('enable')
 
         # initialize the Processor
-        device = '/dev/video0'
+        device = '/dev/video2'
         proc.init(device)
 
         # setup a callback
@@ -127,7 +131,7 @@ class Ui_MainWindow(object):
         try:
             # keep scanning until user provides key/mouse input
             proc.process_one()
-        except zbar.WindowClosed, e:
+        except zbar.WindowClosed as e:
             pass
 
 
@@ -172,8 +176,7 @@ def decrypt(message, f):
 
 
 def decodificarString(encrypted):
-    string = decrypt(encrypted, open(PRIVATE_KEY, 'rb'))
-
+    string = decrypt(encrypted, open(PRIVATE_KEY, 'rb')).decode('utf-8')
     lstCargos = database.getCargosQtde()
     infoVotos = string[1:].split(';')
     stringVotos = ''
@@ -193,7 +196,7 @@ def main():
     mySW = ControlMainWindow()
     mySW.show()
     mySW.raise_()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
