@@ -244,7 +244,7 @@ def som(self, tipo):
     data = f.readframes(chunk)
 
     # play stream
-    while data != "":
+    while data:
         stream.write(data)
         data = f.readframes(chunk)
 
