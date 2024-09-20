@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import gtk
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
 import os
 import sys
 import zbar
@@ -8,8 +10,9 @@ import pyaudio
 import wave
 from time import sleep
 
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 import incrementar
 from base64 import b64decode
@@ -42,8 +45,8 @@ class Ui_MainWindow(object):
 		MainWindow.setWindowIcon(QIcon(ICON))
 		self.apurarWindow = incrementar.incrementar()
 
-		self.screenWidth = gtk.gdk.screen_width()
-		self.screenHeight = gtk.gdk.screen_height()
+		self.screenWidth = 1024
+		self.screenHeight = 600
 
 		MainWindow.show()
 		MainWindow.showMaximized()
@@ -112,9 +115,9 @@ class Ui_MainWindow(object):
 		QMetaObject.connectSlotsByName(MainWindow)
 
 	def retranslateUi(self, MainWindow):
-		MainWindow.setWindowTitle(QApplication.translate("MainWindow", "MainWindow", None, QApplication.UnicodeUTF8))
-		self.btnGerarBoletim.setText(QApplication.translate("MainWindow", "GERAR BOLETIM", None, QApplication.UnicodeUTF8))
-		self.btnLerCodigo.setText(QApplication.translate("MainWindow", "LER CODIGO", None, QApplication.UnicodeUTF8))
+		MainWindow.setWindowTitle(QApplication.translate("MainWindow", "MainWindow", None))
+		self.btnGerarBoletim.setText(QApplication.translate("MainWindow", "GERAR BOLETIM", None))
+		self.btnLerCodigo.setText(QApplication.translate("MainWindow", "LER CODIGO", None))
 
 	def btnGerarBoletimClicked(self):
 		som(self, 2)
@@ -139,7 +142,7 @@ class Ui_MainWindow(object):
 			for symbol in image.symbols:
 			# do something useful with results
 				try:
-					self.apurarWindow.incrementar(self.decrypt(symbol.data, open(PRIVATE_KEY, 'rb')))
+					self.apurarWindow.incrementar(self.decrypt(symbol.data, open(PRIVATE_KEY, 'rb')).decode('utf-8'))
 				except ValueError:
 					self.lblMensagem.setVisible(True)
 					som(self, 2)
@@ -232,7 +235,7 @@ def som(self, tipo):
     data = f.readframes(chunk)
 
     # play stream
-    while data != "":
+    while data:
         stream.write(data)
         data = f.readframes(chunk)
 
@@ -248,7 +251,7 @@ def main():
 	mySW = ControlMainWindow()
 	mySW.show()
 	mySW.raise_()
-	sys.exit(app.exec_())
+	sys.exit(app.exec())
 
 if __name__ == "__main__":
 	main()
