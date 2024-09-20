@@ -32,11 +32,12 @@ class incrementar():
                 voto = cedula[indexCargos]
                 if voto in self.lista_cargos_votos[self.cargos[indexCargos]]:
                     self.lista_cargos_votos[self.cargos[indexCargos]][voto] += 1
-                elif voto is not '':
+                elif voto != '':
                     self.lista_cargos_votos[self.cargos[indexCargos]][voto] = 1
             som(self, 1)
         else:
             som(self, 2)
+            pass
 
 
     def getVotos(self):
@@ -45,7 +46,6 @@ class incrementar():
 
     def gerarBoletim(self):
         c = canvas.Canvas(BOLETIM_PDF)
-
         c.setPageSize((6.2 * cm, 10 * cm))
 
         textobject = c.beginText()
@@ -79,10 +79,11 @@ class incrementar():
         c.save()
         # subprocess.Popen("lpr -P QL-700 -o PageSize=62x100 '{0}'".format(BOLETIM_PDF), shell=True)
         subprocess.Popen("lp '{0}'".format(BOLETIM_PDF), shell=True)
-        subprocess.Popen("rm '{0}'".format(BOLETIM_PDF), shell=True)
+        #subprocess.Popen("rm '{0}'".format(BOLETIM_PDF), shell=True)
 
 
     def exportarCSV(self):
+        print('EXPORTAR')
         stringCsv = "Cargo,Voto,Qtde\n"
         for key in self.lista_cargos_votos:
             for k in self.lista_cargos_votos[key]:
@@ -111,9 +112,9 @@ def som(self, tipo):
                     output=True)
     # read data
     data = f.readframes(chunk)
-
+    print(data)
     # play stream
-    while data != "":
+    while data:
         stream.write(data)
         data = f.readframes(chunk)
 
